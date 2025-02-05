@@ -98,7 +98,7 @@ uintptr_t get_module_base(pid_t pid, char *name, int vm_flag) {
     {
         if (vma->vm_file && (vma->vm_flags & vm_flag)) {
 			dentry = vma->vm_file->f_path.dentry;
-			if (!memcmp(dentry->d_name.name, name, min(name_len, dentry->d_name.len))) {
+			if (!memcmp(dentry->d_name.name, (unsigned char *)name, min((unsigned int)name_len, dentry->d_name.len))) {
 				result = vma->vm_start;
 				goto ret;
 			}
@@ -110,6 +110,14 @@ uintptr_t get_module_base(pid_t pid, char *name, int vm_flag) {
 
     mmput(mm);
     return result;
+}
+
+
+static inline pgprot_t my_pte_pgprot(pte_t pte)
+{
+	unsigned long pfn = pte_pfn(pte);
+
+	return __pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^ pte_val(pte));
 }
 
 phys_addr_t vaddr_to_phy_addr(struct mm_struct *mm, uintptr_t va, pgprot_t* pte_prot) {
@@ -145,7 +153,7 @@ phys_addr_t vaddr_to_phy_addr(struct mm_struct *mm, uintptr_t va, pgprot_t* pte_
 #endif
 
 	if (pte_prot) {
-		orig_prot = pte_pgprot(*ptep);
+		orig_prot = my_pte_pgprot(*ptep);
 		*pte_prot = orig_prot;
 	}
 
