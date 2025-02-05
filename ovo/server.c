@@ -47,6 +47,7 @@ static int ovo_setsockopt(struct socket *sock, int level, int optname,
 
 __always_inline int ovo_get_process_pid(int len, char __user *process_name_user) {
 	int err;
+	pid_t pid;
 	char* process_name = kmalloc(len, GFP_KERNEL);
 	if (!process_name) {
 		return -ENOMEM;
@@ -57,7 +58,7 @@ __always_inline int ovo_get_process_pid(int len, char __user *process_name_user)
 		goto out_proc_name;
 	}
 
-	pid_t pid = find_process_by_name(process_name);
+	pid = find_process_by_name(process_name);
 	if (pid < 0) {
 		err = -ESRCH;
 		goto out_proc_name;
@@ -75,6 +76,7 @@ __always_inline int ovo_get_process_pid(int len, char __user *process_name_user)
 __always_inline int ovo_get_process_module_base(int len, pid_t pid, char __user *module_name_user, int flag) {
 	int err;
 	char* module_name;
+	uintptr_t base;
 
 	module_name = kmalloc(len, GFP_KERNEL);
 	if (!module_name) {
@@ -86,7 +88,7 @@ __always_inline int ovo_get_process_module_base(int len, pid_t pid, char __user 
 		goto out_module_name;
 	}
 
-	uintptr_t base = get_module_base(pid, module_name, flag);
+	base = get_module_base(pid, module_name, flag);
 	if (base == 0) {
 		err = -ENAVAIL;
 		goto out_module_name;
@@ -138,13 +140,13 @@ static int ovo_getsockopt(struct socket *sock, int level, int optname,
 			return 0;
 		}
 		case REQ_ACCESS_PROCESS_VM: {
+			struct req_access_process_vm req;
 			if (get_user(len, optlen))
 				return -EFAULT;
 
 			if (len < sizeof(struct req_access_process_vm))
 				return -EINVAL;
-
-			struct req_access_process_vm req;
+			
 			if (copy_from_user(&req, optval, sizeof(struct req_access_process_vm)))
 				return -EFAULT;
 
@@ -221,7 +223,7 @@ int ovo_mmap(struct file *file, struct socket *sock,
 	}
 
 	if (system_supports_mte()) {
-		vm_flags_set(vma, VM_MTE);
+		//vm_flags_set(vma, VM_MTE);
 	}
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 
